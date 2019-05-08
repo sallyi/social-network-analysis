@@ -19,7 +19,7 @@ g
 E(g) #information about edges
 V(g) #information vertices
 plot.igraph(g, edge.arrow.size = 0.2)
-
+'''
 ### Creating an edgelist
 # defining nodes
 V1 <- c("Sally","Sally","Sally", "Sally","Sally")
@@ -81,4 +81,4 @@ plot.igraph(bipartite_projection(g2)$proj1,main="Affilitaton Network")
 
 ### Plotting one-mode affiliation-affiliation network
 plot.igraph(bipartite_projection(g2)$proj2,main="Affilitaton Network")
-
+'''
