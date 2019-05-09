@@ -6,19 +6,56 @@
 library(igraph)
 setwd("C:/Users/sally/Documents/Social Network Analysis/social-network-analysis/")
 
-?graph.data.frame
-df_meta <- read.csv('disney_channel_metadata.csv') 
-head(df_meta)
-?read.csv
-df_rel <- read.csv('disney_channel_relations.csv',)
-head(df_rel)
-df_rel <- data.frame(df_rel$node1, df_rel$node2)
-df_rel
-g <- graph.data.frame(df_rel)
+load_graph <- function(metadata,rels){
+  df_meta <- read.csv(metadata, encoding='UTF-8') 
+  head(df_meta)
+  df_rel <- read.csv(rels)
+  head(df_rel)
+  df_rel <- data.frame(df_rel$node1, df_rel$node2)
+  df_rel
+  g <- graph.data.frame(df_rel)
+  g
+  E(g) #information about edges
+  V(g) #information vertices
+  plot.igraph(g, edge.arrow.size = 0.2)
+  V(g)$name
+  #V(net)$Sex=as.character(a$Sex[match(V(net)$name,a$Bird.ID)]) # This code 
+  # says to create a vertex attribute called "Sex" by extracting the 
+  #value of the column "Sex" in the attributes file when the Bird ID number matches the vertex name
+  
+}
+
+g <-load_graph('disney_channel_metadata.csv','disney_channel_relations.csv')
+
+g <-load_graph('disney_video_metadata.csv','disney_video_relations.csv')
 g
-E(g) #information about edges
-V(g) #information vertices
-plot.igraph(g, edge.arrow.size = 0.2)
+
+load_graph_scale_nodes <- function(metadata,rels){
+  df_meta <- read.csv(metadata, encoding='UTF-8') 
+  head(df_meta)
+  df_rel <- read.csv(rels)
+  head(df_rel)
+  df_rel <- data.frame(df_rel$node1, df_rel$node2)
+  g <- graph.data.frame(df_rel)
+  g
+  E(g) #information about edges
+  V(g) #information vertices
+  plot.igraph(g, edge.arrow.size = 0.2)
+  g
+}
+
+?graph.data.frame
+
+library(igraph)
+#import the sample_adjmatrix file:
+dat=read.csv(file.choose(),header=TRUE,row.names=1,check.names=FALSE)
+m=as.matrix(dat)
+net=graph.adjacency(m,mode="undirected",weighted=NULL,diag=FALSE)
+# show the names of the vertices you just imported:
+V(net)$name
+
+#the result will be:
+#[1] "23732" "23778" "23824" "23871" "58009" "58098" "58256"
 '''
 ### Creating an edgelist
 # defining nodes
