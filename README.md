@@ -1,6 +1,8 @@
 # social-network-analysis
 SNA 2019 Paper
 
+[Annotation Spreadsheet](https://docs.google.com/spreadsheets/d/1xEXtq6fXdYUjACxoM4e8fnRKE9WuWY_YU9OeTK3FW2Q/edit#gid=482492510)
+
 ### Useful Links
 
 Fucked up links: 
