@@ -4,7 +4,7 @@
 
 ### loading packages
 library(igraph)
-setwd("C:/Users/sally/Documents/Social Network Analysis/social-network-analysis/")
+setwd("/Users/sallyisa/Documents/school/social-network-analysis/")
 
 load_channel_graph <- function(metadata,rels){
   df_meta <- read.csv(metadata, encoding='UTF-8') 
@@ -42,8 +42,7 @@ load_video_graph <- function(metadata,rels){
   V(g)$name
   g$palette <- categorical_pal(length(df_meta$title_language))
   V(g)$language=df_meta$title_language[match(V(g)$name,df_meta$label)] # join to metadata 
-  plot.igraph(g, vertex.color = df_meta$title_language, vertex.label=df_meta$title_language, edge.arrow.size= 0.1,layout=layout.fruchterman.reingold)
-  g
+  plot.igraph(g, vertex.color = df_meta$title_language, vertex.label=df_meta$title_language, edge.arrow.size= 0.1,layout=layout.fruchterman.reingold, vertex.size=6)
   df_meta$title_language[match(V(g)$name,df_meta$label)] 
   g
 }
@@ -52,7 +51,7 @@ load_video_graph <- function(metadata,rels){
 
 g <-load_channel_graph('disney_channel_metadata.csv','disney_channel_relations.csv')
 V(g)$size
-g <-load_video_graph('videonet_baby_shark_2019_05_14_metadata.csv','videonet_baby_shark_2019_05_14_relations.csv')
+g <-load_video_graph('masha_and_shark_2019_05_14_metadata.csv','masha_and_shark_2019_05_14_relations.csv')
 g
 V(g)$language
 
