@@ -1,7 +1,10 @@
 # social-network-analysis
 SNA 2019 Paper
 
-[Annotation Spreadsheet](https://docs.google.com/spreadsheets/d/1xEXtq6fXdYUjACxoM4e8fnRKE9WuWY_YU9OeTK3FW2Q/edit#gid=482492510)
+[Annotation Spreadsheet- good seeds](https://docs.google.com/spreadsheets/d/1xEXtq6fXdYUjACxoM4e8fnRKE9WuWY_YU9OeTK3FW2Q/edit#gid=482492510)
+
+
+[Annotation Spreadsheet - bad seeds](https://docs.google.com/spreadsheets/d/1xp6CHdhP6PBxGRnNWVY0EOaNUbjIpCydU6ZRIkb5U8w/edit?usp=sharing)
 
 ### Useful Links
 
