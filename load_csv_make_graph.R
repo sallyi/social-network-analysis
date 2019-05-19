@@ -4,6 +4,7 @@
 
 ### loading packages
 library(igraph)
+
 setwd("/Users/sallyisa/Documents/school/social-network-analysis/")
 
 load_channel_graph <- function(metadata,rels){
@@ -20,10 +21,15 @@ load_channel_graph <- function(metadata,rels){
   plot.igraph(g, edge.arrow.size = 0.2)
   V(g)$name
   V(g)$subscribers=as.integer(df_meta$subscriberCount[match(V(g)$name,df_meta$label)]) # This code 
-  V(g)$size=V(g)$subscribers^(1/4) 
+  V(g)$size=V(g)$subscribers^(1/5) 
   V(g)$size[is.na(V(g)$size)] <- 0
-  plot.igraph(g,edge.arrow.size = 0.1,layout=layout.fruchterman.reingold)
-  g
+  g$palette <- categorical_pal(length(unique(df_meta$is_inappropriate)))
+  V(g)$color_code=df_meta$is_inappropriate[match(V(g)$name,df_meta$label)] # join to metadata 
+  plot.igraph(g,
+              vertex.color = df_meta$is_inappropriate, 
+              edge.arrow.size = 0.1,layout=layout.fruchterman.reingold)
+  legend("topleft",legend=unique(df_meta$is_inappropriate),fill=g$palette)
+  df_meta
   }
 
 
@@ -51,12 +57,16 @@ load_video_graph <- function(metadata,rels){
               layout=layout.fruchterman.reingold
               )
   df_meta$title_language[match(V(g)$name,df_meta$label)] 
-  df_meta
+  g
 }
 
 
 
-g <-load_channel_graph('disney_channel_metadata.csv','disney_channel_relations.csv')
+g <-load_channel_graph('bad_channels_2019_05_18_metadata.csv','bad_channels_2019_05_18_relations.csv')
+
+
+g <-load_channel_graph('annotated_channels_gdf_metadata.csv','annotated_channels_gdf_relations.csv')
+g
 V(g)$size
 df_good <-load_video_graph('masha_and_shark_2019_05_14_metadata.csv','masha_and_shark_2019_05_14_relations.csv')
 
@@ -64,6 +74,8 @@ df_bad <-load_video_graph('annotated_videonet_seeds_elsa_spiderman_2019_08_18_me
                           'videonet_seeds_elsa_spiderman_2019_08_18_relations.csv')
 colnames(df_bad)
 V(df_bad)$size
+unique(df_bad$channelId.VARCHAR)
+
 
 
 ### loading packages
