@@ -4,8 +4,12 @@
 
 ### loading packages
 library(igraph)
-
+library(dplyr)
+install.packages("devtools")
+if (!require("ForceAtlas2")) devtools::install_github("analyxcompany/ForceAtlas2")
+library("ForceAtlas2")
 setwd("/Users/sallyisa/Documents/school/social-network-analysis/")
+
 
 load_channel_graph <- function(metadata,rels){
   df_meta <- read.csv(metadata, encoding='UTF-8') 
@@ -13,12 +17,9 @@ load_channel_graph <- function(metadata,rels){
   df_rel <- read.csv(rels)
   head(df_rel)
   df_rel <- data.frame(df_rel$node1, df_rel$node2)
-  df_rel
   g <- graph.data.frame(df_rel)
-  g
   E(g) #information about edges
   V(g) #information vertices
-  plot.igraph(g, edge.arrow.size = 0.2)
   V(g)$name
   V(g)$subscribers=as.integer(df_meta$subscriberCount[match(V(g)$name,df_meta$label)]) # This code 
   V(g)$size=V(g)$subscribers^(1/5) 
@@ -27,9 +28,13 @@ load_channel_graph <- function(metadata,rels){
   V(g)$color_code=df_meta$is_inappropriate[match(V(g)$name,df_meta$label)] # join to metadata 
   plot.igraph(g,
               vertex.color = df_meta$is_inappropriate, 
-              edge.arrow.size = 0.1,layout=layout.fruchterman.reingold)
+              edge.arrow.size = 0.1,layout=layout.forceatlas2(g, directed=TRUE, iterations = 100, 
+                                                              linlog = FALSE, pos = NULL, nohubs = FALSE, 
+                                                              k = 400, gravity=1, ks=0.1, ksmax=10, delta = 1,  
+                                                              center=NULL, tolerance = 0.1, dim = 2,
+                                                              plotstep=10, plotlabels=TRUE))
   legend("topleft",legend=unique(df_meta$is_inappropriate),fill=g$palette)
-  df_meta
+  df_rel
   }
 
 
@@ -54,15 +59,17 @@ load_video_graph <- function(metadata,rels){
   plot.igraph(g, vertex.color = df_meta$is_inappropriate, 
               vertex.label=df_meta$is_inappropriate, 
               edge.arrow.size= 0.1,
-              layout=layout.fruchterman.reingold
+              layout=layout.forceatlas2(g, directed=TRUE, iterations = 100, 
+                                        linlog = FALSE, pos = NULL, nohubs = FALSE, 
+                                        k = 400, gravity=1, ks=0.1, ksmax=10, delta = 1,  
+                                        center=NULL, tolerance = 0.1, dim = 2,
+                                        plotstep=10, plotlabels=TRUE)
               )
   df_meta$title_language[match(V(g)$name,df_meta$label)] 
   g
 }
 
 
-
-g <-load_channel_graph('bad_channels_2019_05_18_metadata.csv','bad_channels_2019_05_18_relations.csv')
 
 
 g <-load_channel_graph('annotated_channels_gdf_metadata.csv','annotated_channels_gdf_relations.csv')
@@ -77,101 +84,77 @@ V(df_bad)$size
 unique(df_bad$channelId.VARCHAR)
 
 
+get_centrality_measures <- function(metadata,rels,outname){
+  ## loading the data
+  df_meta <- read.csv(metadata)
+  df_meta
 
-### loading packages
-library(igraph)
+  df <- read.csv(rels) 
+  df <- data.frame(df$node1, df$node2) # remove index column
+  ## creating a graph object
+  g <- graph.data.frame(df, directed = T)
+  g
+  ### creating a data frame where columns represent variables and rows represent videos
+  df.g <- data.frame(video = V(g)$name,
+                     indegree_norm = degree(g, mode = "in", normalized = T), #normalized indegree
+                     outdegree_norm = degree(g, mode = "out", normalized = T ), # normalized outdegree
+                     indegree = degree(g, mode = "in", normalized = F ), # raw indegree
+                     outdegree = degree(g, mode = "out", normalized = F ) # raw outdegree
+                     ) 
+  df.g$is_inappropriate = df_meta$is_inappropriate[match(df.g$video,df_meta$label)] # join to metadata 
+  # ranking the videos by raw (non-normalized) indegree in descending order
+  df.g <- df.g %>% arrange(-indegree)
+  
+  ### exporting the dataframe as a csv in your working directory
+  write.csv(df.g, paste(outname, "_centrality.csv"))
+  #todo split into two,  inappropriate and child-friendly, then average measures
+  cat('\nmean indegree norm centrality:', mean(df.g[['indegree_norm']]))
+  cat('\nmean outdegree norm centrality:', mean(df.g[['outdegree_norm']]))
+  cat('\nmean indegree centrality:', mean(df.g[['indegree']]))
+  cat('\nmean outdegree centrality:', mean(df.g[['outdegree']]))
+  
+  cat('\nmedian indegree norm centrality:', median(df.g[['indegree_norm']]))
+  cat('\nmedian outdegree norm centrality:', median(df.g[['outdegree_norm']]))
+  cat('\nmedian indegree centrality:', median(df.g[['indegree']]))
+  cat('\nmedian outdegree centrality:', median(df.g[['outdegree']]))
+  df.g
 
-### Creating an edgelist
-# defining nodes
-V2 <- c("Bob", "John", "Lisa", "Andrew")
-V1  <- c("Yev", "Yev", "Yev", "Yev")
+}
 
-#puting everything together in one a dataframe
-df <- data.frame(V1, V2)
-df
+df_centrality <-get_centrality_measures('annotated_videonet_seeds_elsa_spiderman_2019_08_18_metadata.csv',
+                          'videonet_seeds_elsa_spiderman_2019_08_18_relations.csv', 'bad_video_network')
+df_centrality
+df_inapprop_centrality <- df_centrality %>% filter(is_inappropriate == 'YES')# %>% select(abbrev1, abbrev2)
+df_childfriendly_centrality <- df_centrality %>% filter(is_inappropriate == 'NO')# %>% select(abbrev1, abbrev2)
+df_childfriendly_centrality
+cat('inappropriate video mean indegree norm centrality:', mean(df_inapprop_centrality[['indegree_norm']]))
+cat('inappropriate video mean outdegree norm centrality:', mean(df_inapprop_centrality[['outdegree_norm']]))
+cat('inappropriate video mean indegree centrality:', mean(df_inapprop_centrality[['indegree']]))
+cat('inappropriate video mean outdegree centrality:', mean(df_inapprop_centrality[['outdegree']]))
+cat('child-friendly video mean indegree norm centrality:', mean(df_childfriendly_centrality[['indegree_norm']]))
+cat('child-friendly video mean outdegree norm centrality:', mean(df_childfriendly_centrality[['outdegree_norm']]))
+cat('child-friendly video mean indegree centrality:', mean(df_childfriendly_centrality[['indegree']]))
+cat('child-friendly video mean outdegree centrality:', mean(df_childfriendly_centrality[['outdegree']]))
 
-### formatting as a graph object
-g <- graph.data.frame(df)
-E(g) #information about edges
-V(g) #information vertices
+cat('inappropriate video median indegree norm centrality:', median(df_inapprop_centrality[['indegree_norm']]))
+cat('inappropriate video median outdegree norm centrality:', median(df_inapprop_centrality[['outdegree_norm']]))
+cat('inappropriate video median indegree centrality:', median(df_inapprop_centrality[['indegree']]))
+cat('inappropriate video median outdegree centrality:', median(df_inapprop_centrality[['outdegree']]))
+cat('child-friendly video median indegree norm centrality:', median(df_childfriendly_centrality[['indegree_norm']]))
+cat('child-friendly video median outdegree norm centrality:', median(df_childfriendly_centrality[['outdegree_norm']]))
+cat('child-friendly video median indegree centrality:', median(df_childfriendly_centrality[['indegree']]))
+cat('child-friendly video median outdegree centrality:', median(df_childfriendly_centrality[['outdegree']]))
 
-### plotting the network
-plot.igraph(g)
+#           indegree, indegree_norm, outdegree, outdegree_norm
+# agg mean
+# cf mean
+# inapprop mean
 
-
-### turning the graph object into an adjacency matrix
-matrix <- as_adjacency_matrix(g)
-matrix
-
-### turning the matrix into a graph object
-g1 <- graph_from_adjacency_matrix(matrix, mode = "undirected")
-
-### plotting the graph object
-plot.igraph(g1)
-
-
-######################################################
-########Creating your first network###################
-######################################################
-
-###Did the abovementioned individuals take courses at the departpment of Political Science at KU during their bachelor? 
-V1 <- c("Bob", "John", "Yev")
-V2 <- c("Bachelor", "Bachelor", "Bachelor")
-
-### formatting as a dataframe edgelist
-df.affil <- data.frame(V1, V2)
-df.affil
- 
-### formatting as a graph object
-g2 <- graph.data.frame(df.affil, directed = F)
-
-##adding node attribute indicating the type of the node
-V(g2)$type <- bipartite.mapping(g2)$type
-
-## adding colors to show profile type (individual/event)
-colors <- V(g2)$type
-
-### Plotting bi-partite affiliation network
-plot.igraph(g2, main="Bi-partite network", vertex.color = colors)
-
-### Plotting one-mode affiliation network
-plot.igraph(bipartite_projection(g2)$proj1,main="Affilitaton Network")
-
-### Plotting one-mode affiliation-affiation network
-plot.igraph(bipartite_projection(g2)$proj2,main="Affilitaton Network")
-
-
-
-### Day 2 ###
-
-
-### loading packages
-library(dplyr)
-library(igraph)
-
-## loading the data
-df <- read.csv("data/DIPCON_3.0_Dyads.csv") # data and documentation from: http://www.u.arizona.edu/~volgy/data.html
-
-###
-df1 <- df %>% filter(dipcon2010 > 0) %>% select(abbrev1, abbrev2)
-
-## creating a graph object
-g <- graph.data.frame(df1, directed = T)
-
-### creating a data frame where columns represent variables and rows represent countires
-df.g <- data.frame(country = V(g)$name,
-                   indegree_norm = degree(g, mode = "in", normalized = T), #normalized indegree
-                   indegree = degree(g, mode = "in", normalized = F )) # raw indegree
-
-# ranking the countries by raw (non-normalized) indegree in descending order
-df.g <- df.g %>% arrange(-indegree)
-
-### examining the first 10 rows (top 10 countries ranked by (non-normalized) indegree)
-head(df.g, 10)
+#                 indegree , indegree_norm, outdegree, outdegree_norm
+# agg median
+# cf median
+# inapprop median
 
 
-### exporting th dataframe as a csv in your working directory
-write.csv(df.g, "diplodata.txt")
-
-
+df_centrality <-get_centrality_measures('masha_and_shark_2019_05_14_metadata.csv','masha_and_shark_2019_05_14_relations.csv', 'good_video_network')
 
