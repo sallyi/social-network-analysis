@@ -1,6 +1,7 @@
 ######################################################
 ########Creating your first network###################
 ######################################################
+rm(list=ls())
 
 ### loading packages
 library(igraph)
@@ -87,7 +88,10 @@ construct_degree_results_df <- function(){
   # construct results df
   N <- 6 # total number of rows to preallocate
   data.frame(data_subset=rep("", N), measure=rep("", N), indegree=rep(NA, N), outdegree=rep(NA, N),  # as many cols as you need
-                          indegree_norm=rep(NA, N), outdegree_norm=rep(NA, N), stringsAsFactors=FALSE)
+                          indegree_norm=rep(NA, N), 
+                          outdegree_norm=rep(NA, N), 
+                          #betweenness=rep(NA, N),
+                          closeness=rep(NA,N), stringsAsFactors=FALSE)
   }
 
 
@@ -137,6 +141,7 @@ get_cliques <- function(graph, df_meta){
   
 }
 
+# todo, add viewcount to node level output
 get_measures <- function(metadata,rels,outname){
   cat('Running measures for', outname, '...')
   ## loading the data
@@ -145,14 +150,21 @@ get_measures <- function(metadata,rels,outname){
   df <- data.frame(df$node1, df$node2) # remove index column
   ## creating a graph object
   g <- graph.data.frame(df, directed = T)
-  g <- simplify(g, remove.multiple = T, remove.loops = T) # use this function to remove multiples or self-ties 
+  # g <- simplify(g, remove.multiple = T, remove.loops = T) # use this function to remove multiples or self-ties 
+  V(g)$is_inappropriate = df_meta$is_inappropriate[match(V(g)$name,df_meta$label)] # subset of vertices for inappropriate videos
+  inappropriate_vertices <- V(g)[V(g)$is_inappropriate == 2, na_ok=TRUE]
+  # cat('\ncolumn names vertices', closeness(g, vids=inappropriate_vertices, mode="out"))
   ### creating a data frame where columns represent variables and rows represent videos
   df.g <- data.frame(video = V(g)$name,
                      indegree_norm = degree(g, mode = "in", normalized = T), #normalized indegree
                      outdegree_norm = degree(g, mode = "out", normalized = T ), # normalized outdegree
                      indegree = degree(g, mode = "in", normalized = F ), # raw indegree
-                     outdegree = degree(g, mode = "out", normalized = F ) # raw outdegree
+                     outdegree = degree(g, mode = "out", normalized = F ), # raw outdegree
+                     #betweenness = betweenness(g,  directed = F, normalized = T), # normalized betweenness
+                     closeness = closeness(g, mode = "all", normalized = T) # normalized closeness
                      ) 
+  
+  #cat('\ncloseness score filtered', g[inappropriate_vertices])
   df.g$is_inappropriate = df_meta$is_inappropriate[match(df.g$video,df_meta$label)] # join to metadata 
   # ranking the videos by raw (non-normalized) indegree in descending order
   df.g <- df.g %>% arrange(-indegree)
@@ -163,11 +175,15 @@ get_measures <- function(metadata,rels,outname){
   out_measures[1, ] <- list("aggregate", "mean", mean(df.g[['indegree']]), 
                 mean(df.g[['outdegree']]), 
                 mean(df.g[['indegree_norm']]),
-                mean(df.g[['outdegree_norm']]))
+                mean(df.g[['outdegree_norm']]),
+                #mean(df.g[['betweenness']]),
+                mean(df.g[['closeness']]))
   out_measures[2, ] <- list("aggregate", "median", median(df.g[['indegree']]), 
                             median(df.g[['outdegree']]), 
                             median(df.g[['indegree_norm']]),
-                            median(df.g[['outdegree_norm']]))
+                            median(df.g[['outdegree_norm']]),
+                            #median(df.g[['betweenness']]),
+                            median(df.g[['closeness']]))
   
   # print network measures
   cat('\nfull network measures:')
@@ -175,29 +191,38 @@ get_measures <- function(metadata,rels,outname){
   cat('\nnetwork degree centralization', centr_degree(g, normalized = T)$centralization)
   cat('\nnetwork betweenness centralization', centr_betw(g, normalized = T)$centralization)
   cat('\nnetwork closeness centralization', centr_clo(g, normalized = T)$centralization)
-  get_cliques(g, df_meta)
+  #get_cliques(g, df_meta)
   if("is_inappropriate" %in% colnames(df.g))
   {
   # separate inappropriate and child-friendly videos
   df_inapprop_centrality <- df.g %>% filter(is_inappropriate == 'YES')# %>% select(abbrev1, abbrev2)
   df_childfriendly_centrality <- df.g %>% filter(is_inappropriate == 'NO')# %>% select(abbrev1, abbrev2)
   # centrality measure to dataframe
+  print(df_childfriendly_centrality$betweenness)
   out_measures[3, ] <- list("child friendly videos", "mean", mean(df_childfriendly_centrality[['indegree']]), 
                             mean(df_childfriendly_centrality[['outdegree']]), 
                             mean(df_childfriendly_centrality[['indegree_norm']]),
-                            mean(df_childfriendly_centrality[['outdegree_norm']]))
+                            mean(df_childfriendly_centrality[['outdegree_norm']]),
+                            #mean(df_childfriendly_centrality[['betweennness']]),
+                            mean(df_childfriendly_centrality[['closeness']]))
   out_measures[4, ] <- list("child friendly videos", "median", median(df_childfriendly_centrality[['indegree']]), 
                             median(df_childfriendly_centrality[['outdegree']]), 
                             median(df_childfriendly_centrality[['indegree_norm']]),
-                            median(df_childfriendly_centrality[['outdegree_norm']]))
+                            median(df_childfriendly_centrality[['outdegree_norm']]),
+                            #median(df_childfriendly_centrality[['betweennness']]),
+                            median(df_childfriendly_centrality[['closeness']]))
   out_measures[5, ] <- list("inappropriate videos", "mean", mean(df_inapprop_centrality[['indegree']]), 
                             mean(df_inapprop_centrality[['outdegree']]), 
                             mean(df_inapprop_centrality[['indegree_norm']]),
-                            mean(df_inapprop_centrality[['outdegree_norm']]))
+                            mean(df_inapprop_centrality[['outdegree_norm']]),
+                            #mean(df_inapprop_centrality[['betweennness']]),
+                            mean(df_inapprop_centrality[['closeness']]))
   out_measures[6, ] <- list("inappropriate videos", "median", median(df_inapprop_centrality[['indegree']]), 
                             median(df_inapprop_centrality[['outdegree']]), 
                             median(df_inapprop_centrality[['indegree_norm']]),
-                            median(df_inapprop_centrality[['outdegree_norm']]))
+                            median(df_inapprop_centrality[['outdegree_norm']]),
+                            #median(df_inapprop_centrality[['betweennness']]),
+                            median(df_inapprop_centrality[['closeness']]))
   
   }
   cat('\nIn/out degree measures:\n')
@@ -208,9 +233,10 @@ get_measures <- function(metadata,rels,outname){
 
 data_bad_in_out_degree <-get_measures('annotated_videonet_seeds_elsa_spiderman_2019_08_18_metadata.csv',
                           'videonet_seeds_elsa_spiderman_2019_08_18_relations.csv', 'bad_video_network')
-data_bad_in_out_degree <- data_bad_in_out_degree %>% arrange(-outdegree)  # sort by column name
+data_bad_in_out_degree <- data_bad_in_out_degree %>% arrange(-closeness)  # sort by column name
 data_bad_in_out_degree
 
+?closeness
 
 data_good_in_out_degree <-get_measures('masha_and_shark_2019_05_14_metadata.csv','masha_and_shark_2019_05_14_relations.csv', 'good_video_network')
 data_good_in_out_degree
