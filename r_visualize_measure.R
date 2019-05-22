@@ -151,8 +151,6 @@ get_measures <- function(metadata,rels,outname){
   ## creating a graph object
   g <- graph.data.frame(df, directed = T)
   # g <- simplify(g, remove.multiple = T, remove.loops = T) # use this function to remove multiples or self-ties 
-  V(g)$is_inappropriate = df_meta$is_inappropriate[match(V(g)$name,df_meta$label)] # subset of vertices for inappropriate videos
-  inappropriate_vertices <- V(g)[V(g)$is_inappropriate == 2, na_ok=TRUE]
   # cat('\ncolumn names vertices', closeness(g, vids=inappropriate_vertices, mode="out"))
   ### creating a data frame where columns represent variables and rows represent videos
   df.g <- data.frame(video = V(g)$name,
@@ -187,8 +185,10 @@ get_measures <- function(metadata,rels,outname){
   
   # print network measures
   cat('\nfull network measures:')
-  cat('network density:', graph.density(g))
+  cat('\nnetwork density:', graph.density(g))
   cat('\nnetwork degree centralization', centr_degree(g, normalized = T)$centralization)
+  cat('\nnetwork in-degree centralization', centr_degree(g, normalized = T, mode='in')$centralization)
+  cat('\nnetwork out-degree centralization', centr_degree(g, normalized = T, mode='out')$centralization)
   cat('\nnetwork betweenness centralization', centr_betw(g, normalized = T)$centralization)
   cat('\nnetwork closeness centralization', centr_clo(g, normalized = T)$centralization)
   #get_cliques(g, df_meta)
