@@ -6,6 +6,9 @@ SNA 2019 Paper
 
 [Annotation Spreadsheet - bad seeds](https://docs.google.com/spreadsheets/d/1xp6CHdhP6PBxGRnNWVY0EOaNUbjIpCydU6ZRIkb5U8w/edit?usp=sharing)
 
+
+[Measures Spreadsheet](https://docs.google.com/spreadsheets/d/1e2TFqYNKDFZxkraRRQMm-fxx5vwccaUowG0b3nhM5NU/edit?usp=sharing)
+
 ### Useful Links
 
 Fucked up links: 
