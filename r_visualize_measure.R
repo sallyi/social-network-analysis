@@ -7,8 +7,10 @@ rm(list=ls())
 library(igraph)
 library(dplyr)
 install.packages("devtools")
+install.packages("ggplot2")
 if (!require("ForceAtlas2")) devtools::install_github("analyxcompany/ForceAtlas2")
 library("ForceAtlas2")
+library("ggplot2")
 setwd("/Users/sallyisa/Documents/school/social-network-analysis/")
 
 
@@ -55,6 +57,8 @@ load_video_graph <- function(metadata,rels){
   V(g)$size=V(g)$views^(1/6) 
   V(g)$size[is.na(V(g)$size)] <- 0
   # add node coloring - inappropriate (yes or no)
+  if("is_inappropriate" %in% colnames(df_meta))
+    {
   g$palette <- categorical_pal(length(unique(df_meta$is_inappropriate)))
   V(g)$color_code=df_meta$is_inappropriate[match(V(g)$name,df_meta$label)] # join to metadata 
   plot.igraph(g, vertex.color = df_meta$is_inappropriate, 
@@ -66,6 +70,18 @@ load_video_graph <- function(metadata,rels){
                                         center=NULL, tolerance = 0.1, dim = 2,
                                         plotstep=10, plotlabels=TRUE)
               )
+  legend("topleft",legend=unique(df_meta$is_inappropriate),fill=g$palette)
+  }
+  else{
+    plot.igraph(g, 
+                edge.arrow.size= 0.1,
+                vertex.label=df_meta$title_language, 
+                layout=layout.forceatlas2(g, directed=TRUE, iterations = 100, 
+                                          linlog = FALSE, pos = NULL, nohubs = FALSE, 
+                                          k = 400, gravity=1, ks=0.1, ksmax=10, delta = 1,  
+                                          center=NULL, tolerance = 0.1, dim = 2,
+                                          plotstep=10, plotlabels=TRUE))
+  }
   df_meta$title_language[match(V(g)$name,df_meta$label)] 
   g
 }
@@ -75,14 +91,13 @@ load_video_graph <- function(metadata,rels){
 
 g <-load_channel_graph('annotated_channels_gdf_metadata.csv','annotated_channels_gdf_relations.csv')
 g
-V(g)$size
+
 df_good <-load_video_graph('masha_and_shark_2019_05_14_metadata.csv','masha_and_shark_2019_05_14_relations.csv')
 
 df_bad <-load_video_graph('annotated_videonet_seeds_elsa_spiderman_2019_08_18_metadata.csv',
                           'videonet_seeds_elsa_spiderman_2019_08_18_relations.csv')
-colnames(df_bad)
+
 V(df_bad)$size
-unique(df_bad$channelId.VARCHAR)
 
 construct_degree_results_df <- function(){
   # construct results df
@@ -106,8 +121,10 @@ get_cliques <- function(graph, df_meta){
        vertex.color = "white")
   
   ### identifying cliques
-  cliques <- cliques(graph, min =5) #mininum clique size = 5 nodes
-  
+  clique_size <-10
+  cat('\ncalculating cliques')
+  cliques <- cliques(graph, min =clique_size) #mininum clique size = 5 nodes
+  cat('\ncliques calculated')
   ## how many cliques are there?
   length(cliques)
   
@@ -115,7 +132,7 @@ get_cliques <- function(graph, df_meta){
   cliques
   
   ### clique size
-  sapply(cliques(graph, min = 5), length) 
+  sapply(cliques(graph, min = clique_size), length) 
   
   ###  identifying the largest clique
   largest_cliques(graph) 
@@ -154,8 +171,10 @@ get_measures <- function(metadata,rels,outname){
   # cat('\ncolumn names vertices', closeness(g, vids=inappropriate_vertices, mode="out"))
   ### creating a data frame where columns represent variables and rows represent videos
   df.g <- data.frame(video = V(g)$name,
+                     degree_norm = degree(g, mode = "all", normalized = T), #normalized indegree
                      indegree_norm = degree(g, mode = "in", normalized = T), #normalized indegree
                      outdegree_norm = degree(g, mode = "out", normalized = T ), # normalized outdegree
+                     degree = degree(g, mode = "all", normalized = F), #normalized indegree
                      indegree = degree(g, mode = "in", normalized = F ), # raw indegree
                      outdegree = degree(g, mode = "out", normalized = F ), # raw outdegree
                      #betweenness = betweenness(g,  directed = F, normalized = T), # normalized betweenness
@@ -191,14 +210,12 @@ get_measures <- function(metadata,rels,outname){
   cat('\nnetwork out-degree centralization', centr_degree(g, normalized = T, mode='out')$centralization)
   cat('\nnetwork betweenness centralization', centr_betw(g, normalized = T)$centralization)
   cat('\nnetwork closeness centralization', centr_clo(g, normalized = T)$centralization)
-  #get_cliques(g, df_meta)
   if("is_inappropriate" %in% colnames(df.g))
   {
   # separate inappropriate and child-friendly videos
   df_inapprop_centrality <- df.g %>% filter(is_inappropriate == 'YES')# %>% select(abbrev1, abbrev2)
   df_childfriendly_centrality <- df.g %>% filter(is_inappropriate == 'NO')# %>% select(abbrev1, abbrev2)
   # centrality measure to dataframe
-  print(df_childfriendly_centrality$betweenness)
   out_measures[3, ] <- list("child friendly videos", "mean", mean(df_childfriendly_centrality[['indegree']]), 
                             mean(df_childfriendly_centrality[['outdegree']]), 
                             mean(df_childfriendly_centrality[['indegree_norm']]),
@@ -228,15 +245,28 @@ get_measures <- function(metadata,rels,outname){
   cat('\nIn/out degree measures:\n')
   out_measures <- na.omit(out_measures) # return measure, drop null rows 
   print(out_measures, row.names = FALSE)
+  #get_cliques(g, df_meta)
+  # visualize centrality measures in ggplot
+  df.g$deg_group[df.g$is_inappropriate == 'YES'] <- "Is inappropriate"
+  df.g$deg_group[df.g$is_inappropriate == 'NO'] <- "Is child-friendly"
+  ggplot(df.g, aes(indegree_norm, outdegree_norm),size=closeness, colour=deg_group) + geom_point() + labs(x ="Normalized In-degree", y ="Normalized Out-degree")
+  ggsave(paste(outname, "_norm_indegree_norm_outdegree.png"), plot =last_plot(),width =25, height =25, units ="cm",dpi =1000)
+  ggplot(df.g, aes(indegree, outdegree),colour=deg_group) + geom_point() + labs(x ="In-degree", y ="Out-degree")
+  ggsave(paste(outname, "_indegree_outdegree.png"), plot =last_plot(),width =25, height =25, units ="cm",dpi =1000)
+  ggplot(df.g, aes(degree, closeness),colour=deg_group) + geom_point() + labs(x ="degree", y ="closeness")
+  ggsave(paste(outname, "_degree_closeness.png"), plot =last_plot(),width =25, height =25, units ="cm",dpi =1000)
   df.g
 }
 
-data_bad_in_out_degree <-get_measures('annotated_videonet_seeds_elsa_spiderman_2019_08_18_metadata.csv',
-                          'videonet_seeds_elsa_spiderman_2019_08_18_relations.csv', 'bad_video_network')
-data_bad_in_out_degree <- data_bad_in_out_degree %>% arrange(-closeness)  # sort by column name
-data_bad_in_out_degree
+data_bad_measures <-get_measures('annotated_videonet_seeds_elsa_spiderman_2019_08_18_metadata.csv',
+                          'videonet_seeds_elsa_spiderman_2019_08_18_relations.csv', 'inappropriate_video_net')
+data_bad_measures <- data_bad_measures %>% arrange(-closeness)  # sort by column name
+data_bad_measures
 
-?closeness
+data_good_measures <-get_measures('masha_and_shark_2019_05_14_metadata.csv',
+                                       'masha_and_shark_2019_05_14_relations.csv', 
+                                       'child_friendly_video_net')
+data_good_measures
 
-data_good_in_out_degree <-get_measures('masha_and_shark_2019_05_14_metadata.csv','masha_and_shark_2019_05_14_relations.csv', 'good_video_network')
-data_good_in_out_degree
+ggplot(data_good_measures, aes(indegree_norm, outdegree)) + geom_point() + labs(x ="Normalized In-degree", y ="Normalized Out-degree")
+ggsave(paste(outname, "_norm_indegree_norm_outdegree.png"), plot =last_plot(),width =25, height =25, units ="cm",dpi =1000)
