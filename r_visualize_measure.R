@@ -102,7 +102,11 @@ V(df_bad)$size
 construct_degree_results_df <- function(){
   # construct results df
   N <- 6 # total number of rows to preallocate
-  data.frame(data_subset=rep("", N), measure=rep("", N), indegree=rep(NA, N), outdegree=rep(NA, N),  # as many cols as you need
+  data.frame(data_subset=rep("", N), measure=rep("", N),
+                          degree=rep(NA, N),
+                          indegree=rep(NA, N), 
+                          outdegree=rep(NA, N),
+                          degree_norm=rep(NA, N),
                           indegree_norm=rep(NA, N), 
                           outdegree_norm=rep(NA, N), 
                           #betweenness=rep(NA, N),
@@ -163,18 +167,20 @@ get_measures <- function(metadata,rels,outname){
   cat('Running measures for', outname, '...')
   ## loading the data
   df_meta <- read.csv(metadata)
+  sink(file=cat(outname,"statistics.txt"))
+  summary(df_meta)
+  sink()
   df <- read.csv(rels) 
   df <- data.frame(df$node1, df$node2) # remove index column
   ## creating a graph object
   g <- graph.data.frame(df, directed = T)
-  # g <- simplify(g, remove.multiple = T, remove.loops = T) # use this function to remove multiples or self-ties 
-  # cat('\ncolumn names vertices', closeness(g, vids=inappropriate_vertices, mode="out"))
+  g <- simplify(g, remove.multiple = T, remove.loops = T) 
   ### creating a data frame where columns represent variables and rows represent videos
   df.g <- data.frame(video = V(g)$name,
-                     degree_norm = degree(g, mode = "all", normalized = T), #normalized indegree
+                     degree_norm = degree(g, mode = "all", normalized = T), #normalize degree
                      indegree_norm = degree(g, mode = "in", normalized = T), #normalized indegree
                      outdegree_norm = degree(g, mode = "out", normalized = T ), # normalized outdegree
-                     degree = degree(g, mode = "all", normalized = F), #normalized indegree
+                     degree = degree(g, mode = "all", normalized = F), # raw degree
                      indegree = degree(g, mode = "in", normalized = F ), # raw indegree
                      outdegree = degree(g, mode = "out", normalized = F ), # raw outdegree
                      #betweenness = betweenness(g,  directed = F, normalized = T), # normalized betweenness
@@ -189,14 +195,20 @@ get_measures <- function(metadata,rels,outname){
   write.csv(df.g, paste(outname, "_centrality.csv"))
   # construct results dfs
   out_measures <- construct_degree_results_df()
-  out_measures[1, ] <- list("aggregate", "mean", mean(df.g[['indegree']]), 
+  out_measures[1, ] <- list("aggregate", "mean", 
+                mean(df.g[['degree']]), 
+                mean(df.g[['indegree']]), 
                 mean(df.g[['outdegree']]), 
+                mean(df.g[['degree_norm']]), 
                 mean(df.g[['indegree_norm']]),
                 mean(df.g[['outdegree_norm']]),
                 #mean(df.g[['betweenness']]),
                 mean(df.g[['closeness']]))
-  out_measures[2, ] <- list("aggregate", "median", median(df.g[['indegree']]), 
+  out_measures[2, ] <- list("aggregate", "median",
+                            median(df.g[['degree']]), 
+                            median(df.g[['indegree']]), 
                             median(df.g[['outdegree']]), 
+                            median(df.g[['degree_norm']]), 
                             median(df.g[['indegree_norm']]),
                             median(df.g[['outdegree_norm']]),
                             #median(df.g[['betweenness']]),
@@ -216,26 +228,38 @@ get_measures <- function(metadata,rels,outname){
   df_inapprop_centrality <- df.g %>% filter(is_inappropriate == 'YES')# %>% select(abbrev1, abbrev2)
   df_childfriendly_centrality <- df.g %>% filter(is_inappropriate == 'NO')# %>% select(abbrev1, abbrev2)
   # centrality measure to dataframe
-  out_measures[3, ] <- list("child friendly videos", "mean", mean(df_childfriendly_centrality[['indegree']]), 
+  out_measures[3, ] <- list("child friendly videos", "mean", 
+                            mean(df_childfriendly_centrality[['degree']]), 
+                            mean(df_childfriendly_centrality[['indegree']]), 
                             mean(df_childfriendly_centrality[['outdegree']]), 
+                            mean(df_childfriendly_centrality[['degree_norm']]), 
                             mean(df_childfriendly_centrality[['indegree_norm']]),
                             mean(df_childfriendly_centrality[['outdegree_norm']]),
                             #mean(df_childfriendly_centrality[['betweennness']]),
                             mean(df_childfriendly_centrality[['closeness']]))
-  out_measures[4, ] <- list("child friendly videos", "median", median(df_childfriendly_centrality[['indegree']]), 
+  out_measures[4, ] <- list("child friendly videos", "median", 
+                            median(df_childfriendly_centrality[['degree']]), 
+                            median(df_childfriendly_centrality[['indegree']]), 
                             median(df_childfriendly_centrality[['outdegree']]), 
+                            median(df_childfriendly_centrality[['degree_norm']]), 
                             median(df_childfriendly_centrality[['indegree_norm']]),
                             median(df_childfriendly_centrality[['outdegree_norm']]),
                             #median(df_childfriendly_centrality[['betweennness']]),
                             median(df_childfriendly_centrality[['closeness']]))
-  out_measures[5, ] <- list("inappropriate videos", "mean", mean(df_inapprop_centrality[['indegree']]), 
+  out_measures[5, ] <- list("inappropriate videos", "mean", 
+                            mean(df_inapprop_centrality[['degree']]), 
+                            mean(df_inapprop_centrality[['indegree']]), 
                             mean(df_inapprop_centrality[['outdegree']]), 
+                            mean(df_inapprop_centrality[['degree_norm']]), 
                             mean(df_inapprop_centrality[['indegree_norm']]),
                             mean(df_inapprop_centrality[['outdegree_norm']]),
                             #mean(df_inapprop_centrality[['betweennness']]),
                             mean(df_inapprop_centrality[['closeness']]))
-  out_measures[6, ] <- list("inappropriate videos", "median", median(df_inapprop_centrality[['indegree']]), 
+  out_measures[6, ] <- list("inappropriate videos", "median", 
+                            median(df_inapprop_centrality[['degree']]), 
+                            median(df_inapprop_centrality[['indegree']]), 
                             median(df_inapprop_centrality[['outdegree']]), 
+                            median(df_inapprop_centrality[['degree_norm']]), 
                             median(df_inapprop_centrality[['indegree_norm']]),
                             median(df_inapprop_centrality[['outdegree_norm']]),
                             #median(df_inapprop_centrality[['betweennness']]),
@@ -245,16 +269,16 @@ get_measures <- function(metadata,rels,outname){
   cat('\nIn/out degree measures:\n')
   out_measures <- na.omit(out_measures) # return measure, drop null rows 
   print(out_measures, row.names = FALSE)
-  #get_cliques(g, df_meta)
+  # get_cliques(g, df_meta)
   # visualize centrality measures in ggplot
   df.g$deg_group[df.g$is_inappropriate == 'YES'] <- "Is inappropriate"
   df.g$deg_group[df.g$is_inappropriate == 'NO'] <- "Is child-friendly"
-  ggplot(df.g, aes(indegree_norm, outdegree_norm),size=closeness, colour=deg_group) + geom_point() + labs(x ="Normalized In-degree", y ="Normalized Out-degree")
+  ggplot(df.g, aes(indegree_norm, outdegree_norm, size=closeness, colour=deg_group)) + geom_point() + labs(x ="Normalized In-degree", y ="Normalized Out-degree")
   ggsave(paste(outname, "_norm_indegree_norm_outdegree.png"), plot =last_plot(),width =25, height =25, units ="cm",dpi =1000)
   ggplot(df.g, aes(indegree, outdegree),colour=deg_group) + geom_point() + labs(x ="In-degree", y ="Out-degree")
   ggsave(paste(outname, "_indegree_outdegree.png"), plot =last_plot(),width =25, height =25, units ="cm",dpi =1000)
   ggplot(df.g, aes(degree, closeness),colour=deg_group) + geom_point() + labs(x ="degree", y ="closeness")
-  ggsave(paste(outname, "_degree_closeness.png"), plot =last_plot(),width =25, height =25, units ="cm",dpi =1000)
+  ggsave(paste(outname, "_degree_closeness.png"), plot = last_plot(),width =25, height =25, units ="cm",dpi =1000)
   df.g
 }
 
