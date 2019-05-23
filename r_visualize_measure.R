@@ -4,17 +4,18 @@
 rm(list=ls())
 
 ### loading packages
+install.packages('RColorBrewer')
+library(RColorBrewer)
 library(igraph)
 library(dplyr)
-install.packages("devtools")
-install.packages("ggplot2")
+library("ggplot2")
 if (!require("ForceAtlas2")) devtools::install_github("analyxcompany/ForceAtlas2")
 library("ForceAtlas2")
-library("ggplot2")
 setwd("/Users/sallyisa/Documents/school/social-network-analysis/")
 
+#### basic visualizations of network structures #####
 
-load_channel_graph <- function(metadata,rels){
+load_channel_graph <- function(metadata, rels, graph_name){
   df_meta <- read.csv(metadata, encoding='UTF-8') 
   head(df_meta)
   df_rel <- read.csv(rels)
@@ -27,21 +28,31 @@ load_channel_graph <- function(metadata,rels){
   V(g)$subscribers=as.integer(df_meta$subscriberCount[match(V(g)$name,df_meta$label)]) # This code 
   V(g)$size=V(g)$subscribers^(1/5) 
   V(g)$size[is.na(V(g)$size)] <- 0
+  V(g)$is_inappropriate=df_meta$is_inappropriate[match(V(g)$name,df_meta$label)] # join to metadata 
+  coul = brewer.pal(2, "Set1")
+  my_color=coul[as.numeric(as.factor(V(g)$is_inappropriate))]
   g$palette <- categorical_pal(length(unique(df_meta$is_inappropriate)))
   V(g)$color_code=df_meta$is_inappropriate[match(V(g)$name,df_meta$label)] # join to metadata 
   plot.igraph(g,
-              vertex.color = df_meta$is_inappropriate, 
+              main=graph_name,
+              vertex.color = my_color,  
               edge.arrow.size = 0.1,layout=layout.forceatlas2(g, directed=TRUE, iterations = 100, 
                                                               linlog = FALSE, pos = NULL, nohubs = FALSE, 
                                                               k = 400, gravity=1, ks=0.1, ksmax=10, delta = 1,  
                                                               center=NULL, tolerance = 0.1, dim = 2,
                                                               plotstep=10, plotlabels=TRUE))
-  legend("topleft",legend=unique(df_meta$is_inappropriate),fill=g$palette)
-  df_rel
+  legend("topleft",legend=levels(as.factor(df_meta$is_inappropriate)), 
+         pch=20 , pt.cex = 3, cex = 1.5, 
+         col=coul, bty = "n", text.col=coul)
+  g
   }
 
 
-load_video_graph <- function(metadata,rels){
+
+g <-load_channel_graph('annotated_channels_gdf_metadata.csv','annotated_channels_gdf_relations.csv', 'Annotated Inappropriate Channel Graph')
+V(g)$is_inappropriate
+
+load_video_graph <- function(metadata,rels, graph_name){
   df_meta <- read.csv(metadata, encoding='UTF-8') 
   head(df_meta)
   df_rel <- read.csv(rels,encoding='UTF-8')
@@ -54,15 +65,18 @@ load_video_graph <- function(metadata,rels){
   V(g) #information vertices
   # add node sizing - view count
   V(g)$views=as.integer(df_meta$viewCount.INT[match(V(g)$name,df_meta$label)]) # This code 
-  V(g)$size=V(g)$views^(1/6) 
+  # 
+  V(g)$size=log2(V(g)$views) 
   V(g)$size[is.na(V(g)$size)] <- 0
   # add node coloring - inappropriate (yes or no)
   if("is_inappropriate" %in% colnames(df_meta))
     {
   g$palette <- categorical_pal(length(unique(df_meta$is_inappropriate)))
   V(g)$color_code=df_meta$is_inappropriate[match(V(g)$name,df_meta$label)] # join to metadata 
-  plot.igraph(g, vertex.color = df_meta$is_inappropriate, 
-              vertex.label=df_meta$is_inappropriate, 
+  plot.igraph(g,
+              main=graph_name,
+              vertex.color = df_meta$is_inappropriate, 
+              vertex.label=df_meta$title_language, 
               edge.arrow.size= 0.1,
               layout=layout.forceatlas2(g, directed=TRUE, iterations = 100, 
                                         linlog = FALSE, pos = NULL, nohubs = FALSE, 
@@ -73,8 +87,10 @@ load_video_graph <- function(metadata,rels){
   legend("topleft",legend=unique(df_meta$is_inappropriate),fill=g$palette)
   }
   else{
-    plot.igraph(g, 
+    plot.igraph(g,
+                main=graph_name,
                 edge.arrow.size= 0.1,
+                vertex.color = df_meta$title_language, 
                 vertex.label=df_meta$title_language, 
                 layout=layout.forceatlas2(g, directed=TRUE, iterations = 100, 
                                           linlog = FALSE, pos = NULL, nohubs = FALSE, 
@@ -86,16 +102,11 @@ load_video_graph <- function(metadata,rels){
   g
 }
 
-
-
-
-g <-load_channel_graph('annotated_channels_gdf_metadata.csv','annotated_channels_gdf_relations.csv')
-g
-
-df_good <-load_video_graph('masha_and_shark_2019_05_14_metadata.csv','masha_and_shark_2019_05_14_relations.csv')
+df_good <-load_video_graph('masha_and_shark_2019_05_14_metadata.csv','masha_and_shark_2019_05_14_relations.csv', 'Child-Friendly Video Network')
 
 df_bad <-load_video_graph('annotated_videonet_seeds_elsa_spiderman_2019_08_18_metadata.csv',
-                          'videonet_seeds_elsa_spiderman_2019_08_18_relations.csv')
+                          'videonet_seeds_elsa_spiderman_2019_08_18_relations.csv',
+                          'Inappropriate Video Network')
 
 V(df_bad)$size
 
@@ -149,11 +160,13 @@ get_cliques <- function(graph, df_meta){
   
   ### vizualising who is in the largest clique (orange) and who is not (grey)
   plot.igraph(graph,
+      main="Cliques",
        vertex.size = 20,
        vertex.label= graph$title_language,
        vertex.label.color = "black",
        vertex.label.cex = 1,
        vertex.color = vcol,
+       edge.arrow.size = 0.1
        )
   
   # for more info om vizualisation, see this blog http://kateto.net/networks-r-igraph
@@ -162,13 +175,79 @@ get_cliques <- function(graph, df_meta){
   
 }
 
+get_kcores <- function(graph){
+  
+  ### computing graph coreness
+  V(graph)$Kcore = graph.coreness(graph)
+  
+  # examining the graph
+  plot(graph,
+       main="K Cores",
+       vertex.size = 20,
+       vertex.label = V(graph)$Kcore,
+       vertex.label.color = "black",
+       vertex.label.cex = 1,
+       vertex.color = "white",
+       edge.arrow.size = 0.1)
+  
+  # storing a list of nodes that belong to k <=3
+  exclude <- V(graph)[Kcore < 4]
+  
+  # removing these nodes in order to make a k-4 core
+  k4 <- delete.vertices(graph, exclude)
+  
+  ### plotting k4
+  plot(k4,
+       main="K Cores",
+       vertex.size = 20,
+       vertex.label = V(k4)$Kcore,
+       vertex.label.color = "black",
+       vertex.label.cex = 1,
+       vertex.color = "white",
+       edge.arrow.size = 0.1)
+  
+  ### plotting k4 where color reflects k
+  plot(k4,
+       main="K Cores",
+       vertex.size = 20,
+       vertex.label = V(k4)$Kcore,
+       vertex.label.color = "black",
+       vertex.label.cex = 1,
+       vertex.color = V(graph)$Kcore,
+       edge.arrow.size = 0.1)
+  
+  ### plotting k4 where node size reflects
+  #computing degree
+  deg <- degree(k4)
+  plot(k4,
+       main="K Cores",
+       vertex.size = deg, # node size reflects degree
+       vertex.label = V(k4)$Kcore,
+       vertex.label.color = "black",
+       vertex.label.cex = 1,
+       vertex.color = V(graph)$Kcore,
+       edge.arrow.size = 0.1)
+}
+
+visualize_ggplot <- function(df.g, outname){
+  df.g$deg_group[df.g$is_inappropriate == 'YES'] <- "Is inappropriate"
+  df.g$deg_group[df.g$is_inappropriate == 'NO'] <- "Is child-friendly"
+  ggplot(df.g, aes(indegree_norm, outdegree_norm, size=closeness, colour=deg_group)) + geom_point() + labs(x ="Normalized In-degree", y ="Normalized Out-degree")
+  ggsave(paste(outname, "_norm_indegree_norm_outdegree.png"), plot =last_plot(),width =25, height =25, units ="cm",dpi =1000)
+  ggplot(df.g, aes(indegree, outdegree),colour=deg_group) + geom_point() + labs(x ="In-degree", y ="Out-degree")
+  ggsave(paste(outname, "_indegree_outdegree.png"), plot =last_plot(),width =25, height =25, units ="cm",dpi =1000)
+  ggplot(df.g, aes(degree, closeness),colour=deg_group) + geom_point() + labs(x ="degree", y ="closeness")
+  ggsave(paste(outname, "_degree_closeness.png"), plot = last_plot(),width =25, height =25, units ="cm",dpi =1000)
+}
+
 # todo, add viewcount to node level output
-get_measures <- function(metadata,rels,outname){
+get_measures <- function(metadata, rels, outname){
   cat('Running measures for', outname, '...')
   ## loading the data
   df_meta <- read.csv(metadata)
-  sink(file=cat(outname,"statistics.txt"))
-  summary(df_meta)
+  outfile <- paste(outname, "statistics.txt")
+  sink(file=outfile)
+  print(summary(df_meta))
   sink()
   df <- read.csv(rels) 
   df <- data.frame(df$node1, df$node2) # remove index column
@@ -192,7 +271,6 @@ get_measures <- function(metadata,rels,outname){
   # ranking the videos by raw (non-normalized) indegree in descending order
   df.g <- df.g %>% arrange(-indegree)
   ### exporting the dataframe as a csv in your working directory
-  write.csv(df.g, paste(outname, "_centrality.csv"))
   # construct results dfs
   out_measures <- construct_degree_results_df()
   out_measures[1, ] <- list("aggregate", "mean", 
@@ -264,33 +342,27 @@ get_measures <- function(metadata,rels,outname){
                             median(df_inapprop_centrality[['outdegree_norm']]),
                             #median(df_inapprop_centrality[['betweennness']]),
                             median(df_inapprop_centrality[['closeness']]))
+  visualize_ggplot(df.g, outname)
   
   }
   cat('\nIn/out degree measures:\n')
   out_measures <- na.omit(out_measures) # return measure, drop null rows 
   print(out_measures, row.names = FALSE)
   # get_cliques(g, df_meta)
+  get_kcores(g)
   # visualize centrality measures in ggplot
-  df.g$deg_group[df.g$is_inappropriate == 'YES'] <- "Is inappropriate"
-  df.g$deg_group[df.g$is_inappropriate == 'NO'] <- "Is child-friendly"
-  ggplot(df.g, aes(indegree_norm, outdegree_norm, size=closeness, colour=deg_group)) + geom_point() + labs(x ="Normalized In-degree", y ="Normalized Out-degree")
-  ggsave(paste(outname, "_norm_indegree_norm_outdegree.png"), plot =last_plot(),width =25, height =25, units ="cm",dpi =1000)
-  ggplot(df.g, aes(indegree, outdegree),colour=deg_group) + geom_point() + labs(x ="In-degree", y ="Out-degree")
-  ggsave(paste(outname, "_indegree_outdegree.png"), plot =last_plot(),width =25, height =25, units ="cm",dpi =1000)
-  ggplot(df.g, aes(degree, closeness),colour=deg_group) + geom_point() + labs(x ="degree", y ="closeness")
-  ggsave(paste(outname, "_degree_closeness.png"), plot = last_plot(),width =25, height =25, units ="cm",dpi =1000)
   df.g
 }
 
 data_bad_measures <-get_measures('annotated_videonet_seeds_elsa_spiderman_2019_08_18_metadata.csv',
                           'videonet_seeds_elsa_spiderman_2019_08_18_relations.csv', 'inappropriate_video_net')
 data_bad_measures <- data_bad_measures %>% arrange(-closeness)  # sort by column name
-data_bad_measures
+write.csv(data_bad_measures, 'video_node_measures-inappropriate_network.csv')
 
 data_good_measures <-get_measures('masha_and_shark_2019_05_14_metadata.csv',
                                        'masha_and_shark_2019_05_14_relations.csv', 
                                        'child_friendly_video_net')
-data_good_measures
+write.csv(data_good_measures, 'video_node_measures-child_friendly_network.csv')
 
 ggplot(data_good_measures, aes(indegree_norm, outdegree)) + geom_point() + labs(x ="Normalized In-degree", y ="Normalized Out-degree")
 ggsave(paste(outname, "_norm_indegree_norm_outdegree.png"), plot =last_plot(),width =25, height =25, units ="cm",dpi =1000)
