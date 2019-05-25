@@ -6,6 +6,7 @@ rm(list=ls())
 ### loading packages
 install.packages('RColorBrewer')
 install.packages('corrplot')
+install.packages('ggpubr')
 library(corrplot)
 if (!require("ForceAtlas2")) devtools::install_github("analyxcompany/ForceAtlas2")
 library(RColorBrewer)
@@ -13,6 +14,7 @@ library(igraph)
 library(dplyr)
 library("ggplot2")
 library("ForceAtlas2")
+library("ggpubr")
 setwd("/Users/sallyisa/Documents/school/social-network-analysis/")
 
 #### basic visualizations of network structures #####
@@ -347,7 +349,7 @@ get_measures <- function(metadata, rels, outname, k){
   df.g$is_inappropriate_num <- !as.integer(as.character(df.g$is_inappropriate)=="NO")
   df.g$is_inappropriate_num[is.na(df.g$is_inappropriate_num)] <- 0
   df.g$view_count[is.na(df.g$view_count)] <- 0
-  M <-cor(df.g[, c(2,3,4,5,6,7,8,9,10,12,13)])
+  M <-cor(df.g[, c(2,3,4,5,6,7,8,9,10,12,13)]) #todo, fix for cf friendly network
   corrplot(M, type="upper", order="hclust",
            col=brewer.pal(n=8, name="RdYlBu"))
   df.g
